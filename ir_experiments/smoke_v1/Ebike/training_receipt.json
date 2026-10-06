@@ -1,0 +1,14 @@
+{
+  "initialization": "dataset",
+  "start_checkpoint": null,
+  "resumed_iteration": 0,
+  "final_iteration": 80,
+  "optimizer_updates_this_process": 80,
+  "cumulative_iterations": 80,
+  "seconds": 29.66120481491089,
+  "cuda_visible_devices": "0",
+  "peak_cuda_allocated_bytes": 1014811648,
+  "gaussian_count": 5032,
+  "ir_kernel_parameter_count": 50320,
+  "default_seed_policy": "utils.general_utils.safe_state unchanged"
+}

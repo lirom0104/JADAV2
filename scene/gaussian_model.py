@@ -116,6 +116,8 @@ class DualModalRefinementHead(nn.Module):
         }
 
 class GaussianModel:
+    # Four directional derivatives and one difference-of-Gaussians lobe.
+    detail_basis_directions = 5
 
     def setup_functions(self):
         def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
@@ -148,6 +150,12 @@ class GaussianModel:
         use_color_refinement : bool = False,
         color_refinement_hidden_dim : int = 16,
         color_refinement_max_residual : float = 0.06,
+        use_detail_basis : bool = False,
+        detail_basis_mode : str = "screen_dog",
+        detail_basis_scale : float = 0.08,
+        detail_basis_thermal_scale : float = 0.06,
+        use_ir_kernel : bool = False,
+        ir_kernel_amplitude : float = 0.2,
     ):
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree  
@@ -159,6 +167,11 @@ class GaussianModel:
         self._scaling = torch.empty(0)
         self._rotation = torch.empty(0)
         self._opacity_base = torch.empty(0)
+        # Five per-anchor detail coefficients per modality.
+        self._detail_rgb = torch.empty(0)
+        self._detail_thermal = torch.empty(0)
+        # IR-only signed amplitude (3), local offset (3), log width (3), opacity (1).
+        self._ir_kernel = torch.empty(0)
         self._at_gom_opacity_bias_rgb = torch.empty(0)
         self._at_gom_opacity_bias_th = torch.empty(0)
         self._at_gom_center_residual = torch.empty(0)
@@ -191,6 +204,9 @@ class GaussianModel:
         self.cmo_split_partner_balance_min = 0.3
         self.cmo_split_max_extra_ratio = 0.15
         self.cmo_max_point_ratio = 1.8
+        self.cmo_gradient_consensus_floor = 0.7
+        self.cmo_gradient_single_view_discount = 0.8
+        self.last_cmo_gradient_diagnostics = {}
         self.cmo_start_point_count = 0
         self.cmo_budget_reference_count = 0
         self.last_cmo_selection_diagnostics = {
@@ -209,6 +225,18 @@ class GaussianModel:
         self.use_color_refinement = use_color_refinement
         self.color_refinement_hidden_dim = color_refinement_hidden_dim
         self.color_refinement_max_residual = color_refinement_max_residual
+        self.use_detail_basis = bool(use_detail_basis)
+        self.detail_basis_runtime_enabled = self.use_detail_basis
+        detail_basis_mode = detail_basis_mode or "screen_dog"
+        if detail_basis_mode not in {"screen_dog", "oriented_hermite"}:
+            raise ValueError(f"Unsupported detail basis mode: {detail_basis_mode}")
+        self.detail_basis_mode = detail_basis_mode
+        self.detail_basis_scale = 0.08 if detail_basis_scale is None else float(detail_basis_scale)
+        self.detail_basis_thermal_scale = 0.06 if detail_basis_thermal_scale is None else float(detail_basis_thermal_scale)
+        self.use_ir_kernel = bool(use_ir_kernel)
+        self.ir_kernel_runtime_enabled = self.use_ir_kernel
+        self.ir_kernel_amplitude = 0.2 if ir_kernel_amplitude is None else float(ir_kernel_amplitude)
+        self.ir_kernel_lr = 0.003
         self.color_refinement_runtime_enabled = True
         self.color_refinement = None
         self.last_color_refinement_residual = None
@@ -225,7 +253,7 @@ class GaussianModel:
 
     def capture(self):
         return {
-            "version": 5,
+            "version": 8,
             "active_sh_degree": self.active_sh_degree,
             "xyz": self._xyz,
             "features_dc": self._features_dc,
@@ -235,6 +263,15 @@ class GaussianModel:
             "scaling": self._scaling,
             "rotation": self._rotation,
             "opacity_base": self._opacity_base,
+            "detail_rgb": self._detail_rgb,
+            "detail_thermal": self._detail_thermal,
+            "ir_kernel": self._ir_kernel,
+            "use_ir_kernel": self.use_ir_kernel,
+            "ir_kernel_amplitude": self.ir_kernel_amplitude,
+            "use_detail_basis": self.use_detail_basis,
+            "detail_basis_mode": self.detail_basis_mode,
+            "detail_basis_scale": self.detail_basis_scale,
+            "detail_basis_thermal_scale": self.detail_basis_thermal_scale,
             "at_gom_opacity_bias_rgb": self._at_gom_opacity_bias_rgb,
             "at_gom_opacity_bias_th": self._at_gom_opacity_bias_th,
             "at_gom_center_residual": self._at_gom_center_residual,
@@ -264,6 +301,8 @@ class GaussianModel:
             "cmo_states": self.get_cmo_states(),
             "cmo_state_ema": self.cmo_state_ema,
             "save_cmo_states_enabled": self.save_cmo_states_enabled,
+            "cmo_gradient_consensus_floor": self.cmo_gradient_consensus_floor,
+            "cmo_gradient_single_view_discount": self.cmo_gradient_single_view_discount,
             "cmo_split_partner_balance_min": self.cmo_split_partner_balance_min,
         }
     
@@ -288,6 +327,9 @@ class GaussianModel:
                 self.spatial_lr_scale,
             ) = model_args
             self._opacity_base = opacity_legacy
+            self._detail_rgb = self._make_zero_detail_parameter(self._xyz)
+            self._detail_thermal = self._make_zero_detail_parameter(self._xyz)
+            self._ir_kernel = self._make_zero_ir_kernel_parameter(self._xyz)
             self._at_gom_opacity_bias_rgb = self._make_zero_parameter_like(self._opacity_base)
             self._at_gom_opacity_bias_th = self._make_zero_parameter_like(self._opacity_base)
             self._at_gom_center_residual = self._make_zero_parameter_like(self._xyz)
@@ -303,6 +345,26 @@ class GaussianModel:
             self._scaling = model_args["scaling"]
             self._rotation = model_args["rotation"]
             self._opacity_base = model_args["opacity_base"] if "opacity_base" in model_args else model_args["opacity"]
+            self._detail_rgb = self._canonicalize_detail_tensor(
+                model_args.get("detail_rgb", self._make_zero_detail_parameter(self._xyz)), self._xyz
+            )
+            self._detail_thermal = self._canonicalize_detail_tensor(
+                model_args.get("detail_thermal", self._make_zero_detail_parameter(self._xyz)), self._xyz
+            )
+            self.use_ir_kernel = bool(model_args.get("use_ir_kernel", False) or self.use_ir_kernel)
+            self.ir_kernel_runtime_enabled = self.use_ir_kernel
+            self.ir_kernel_amplitude = float(model_args.get("ir_kernel_amplitude", self.ir_kernel_amplitude))
+            self._ir_kernel = self._load_ir_kernel_parameter(model_args.get("ir_kernel"), self._xyz)
+            # A legacy checkpoint may explicitly store the pre-ODB False flag.
+            # Preserve a command-line-enabled detail basis when fine-tuning it.
+            self.use_detail_basis = bool(model_args.get("use_detail_basis", False) or self.use_detail_basis)
+            self.detail_basis_runtime_enabled = self.use_detail_basis
+            if self.detail_basis_mode == "screen_dog":
+                self.detail_basis_mode = model_args.get("detail_basis_mode", "screen_dog")
+            if "detail_basis_scale" in model_args and self.detail_basis_scale == 0.08:
+                self.detail_basis_scale = float(model_args["detail_basis_scale"])
+            if "detail_basis_thermal_scale" in model_args and self.detail_basis_thermal_scale == 0.06:
+                self.detail_basis_thermal_scale = float(model_args["detail_basis_thermal_scale"])
             self._at_gom_opacity_bias_rgb = (
                 model_args["at_gom_opacity_bias_rgb"] if "at_gom_opacity_bias_rgb" in model_args else self._make_zero_parameter_like(self._opacity_base)
             )
@@ -362,6 +424,12 @@ class GaussianModel:
             self.bgfc_gate_target_std = model_args.get("bgfc_gate_target_std", self.bgfc_gate_target_std)
             self.cmo_state_ema = model_args.get("cmo_state_ema", self.cmo_state_ema)
             self.save_cmo_states_enabled = model_args.get("save_cmo_states_enabled", self.save_cmo_states_enabled)
+            self.cmo_gradient_consensus_floor = model_args.get(
+                "cmo_gradient_consensus_floor", self.cmo_gradient_consensus_floor
+            )
+            self.cmo_gradient_single_view_discount = model_args.get(
+                "cmo_gradient_single_view_discount", self.cmo_gradient_single_view_discount
+            )
             self.cmo_split_partner_balance_min = model_args.get(
                 "cmo_split_partner_balance_min", self.cmo_split_partner_balance_min
             )
@@ -391,7 +459,14 @@ class GaussianModel:
             return
         try:
             self.optimizer.load_state_dict(opt_dict)
+            self._drop_incompatible_optimizer_states()
+            self._restore_detail_learning_rate(training_args)
         except ValueError:
+            if self._restore_optimizer_by_name(opt_dict):
+                self._drop_incompatible_optimizer_states()
+                self._restore_detail_learning_rate(training_args)
+                print("[Warning] Migrated optimizer state by parameter-group name.")
+                return
             legacy_groups = opt_dict.get("param_groups", []) if isinstance(opt_dict, dict) else []
             filtered_groups = [
                 group for group in legacy_groups
@@ -413,14 +488,102 @@ class GaussianModel:
                 }
                 try:
                     self.optimizer.load_state_dict(migrated_state)
+                    self._drop_incompatible_optimizer_states()
+                    self._restore_detail_learning_rate(training_args)
                     print("[Warning] Migrated optimizer state from the legacy RGB-opacity-bias layout.")
                     return
                 except ValueError:
                     pass
             print("[Warning] Optimizer state is incompatible with the refactored GaussianModel and was reinitialized.")
 
+    def _restore_optimizer_by_name(self, state_dict):
+        """Preserve existing Adam moments when a new optional group is added."""
+        if not isinstance(state_dict, dict):
+            return False
+        saved_groups = {group.get("name"): group for group in state_dict.get("param_groups", [])}
+        if not saved_groups or None in saved_groups:
+            return False
+        migrated = self.optimizer.state_dict()
+        migrated["state"] = {}
+        for current_group in migrated["param_groups"]:
+            saved_group = saved_groups.get(current_group.get("name"))
+            if saved_group is None:
+                continue
+            current_ids = current_group["params"]
+            saved_ids = saved_group.get("params", [])
+            if len(current_ids) != len(saved_ids):
+                continue
+            current_group.update({key: value for key, value in saved_group.items() if key != "params"})
+            for current_id, saved_id in zip(current_ids, saved_ids):
+                if saved_id in state_dict.get("state", {}):
+                    migrated["state"][current_id] = state_dict["state"][saved_id]
+        self.optimizer.load_state_dict(migrated)
+        return True
+
+    def _drop_incompatible_optimizer_states(self):
+        """Reset Adam moments whose checkpoint shape predates a basis expansion."""
+        if self.optimizer is None:
+            return
+        for parameter, state in list(self.optimizer.state.items()):
+            incompatible = any(
+                torch.is_tensor(value)
+                and value.ndim > 0
+                and tuple(value.shape) != tuple(parameter.shape)
+                for value in state.values()
+            )
+            if incompatible:
+                self.optimizer.state.pop(parameter, None)
+
+    def _restore_detail_learning_rate(self, training_args):
+        """Keep resumed ODB runs controlled by the active CLI learning rate."""
+        detail_lr = getattr(training_args, "detail_basis_lr", None)
+        if self.optimizer is None:
+            return
+        for group in self.optimizer.param_groups:
+            if group.get("name") == "detail_rgb" and detail_lr is not None:
+                group["lr"] = float(detail_lr)
+            elif group.get("name") == "detail_thermal":
+                group["lr"] = 0.0
+            elif group.get("name") == "ir_kernel":
+                group["lr"] = self.ir_kernel_lr if self.use_ir_kernel else 0.0
+
     def _make_zero_parameter_like(self, reference):
         return nn.Parameter(torch.zeros_like(reference).requires_grad_(True))
+
+    def _make_zero_ir_kernel_parameter(self, reference):
+        return nn.Parameter(
+            reference.new_zeros((reference.shape[0], 10)),
+            requires_grad=self.use_ir_kernel,
+        )
+
+    def _load_ir_kernel_parameter(self, value, reference):
+        if value is None:
+            return self._make_zero_ir_kernel_parameter(reference)
+        tensor = torch.as_tensor(value, device=reference.device, dtype=reference.dtype)
+        if tensor.shape != (reference.shape[0], 10):
+            raise ValueError("IR kernel parameters must have shape [num_gaussians, 10].")
+        return nn.Parameter(tensor.detach().clone(), requires_grad=self.use_ir_kernel)
+
+    def _make_zero_detail_parameter(self, reference):
+        # [anchor, direction, channel].  Keeping this shape explicit makes
+        # densification and checkpoint migration independent of SH degree.
+        return nn.Parameter(
+            torch.zeros(
+                (reference.shape[0], self.detail_basis_directions, 3),
+                device=reference.device,
+                dtype=reference.dtype,
+            ).requires_grad_(True)
+        )
+
+    def _canonicalize_detail_tensor(self, tensor, reference):
+        """Pad two-direction checkpoints so they remain loadable after adding diagonals."""
+        if tensor is None:
+            return self._make_zero_detail_parameter(reference)
+        if tensor.shape[1] == self.detail_basis_directions:
+            return tensor
+        padded = tensor.new_zeros((tensor.shape[0], self.detail_basis_directions, tensor.shape[2]))
+        padded[:, : min(tensor.shape[1], self.detail_basis_directions)] = tensor[:, : self.detail_basis_directions]
+        return nn.Parameter(padded.requires_grad_(True))
 
     def _canonicalize_rgb_opacity(self):
         if self._opacity_base.numel() == 0:
@@ -725,6 +888,12 @@ class GaussianModel:
             self._at_gom_center_residual.requires_grad_(delta_requires_grad)
         if isinstance(self._at_gom_log_scale_residual, nn.Parameter):
             self._at_gom_log_scale_residual.requires_grad_(delta_requires_grad)
+        if isinstance(self._detail_rgb, nn.Parameter):
+            self._detail_rgb.requires_grad_(bool(self.use_detail_basis))
+        if isinstance(self._detail_thermal, nn.Parameter):
+            self._detail_thermal.requires_grad_(False)
+        if isinstance(getattr(self, "_ir_kernel", None), nn.Parameter):
+            self._ir_kernel.requires_grad_(self.use_ir_kernel)
         for parameter in (
             self._render_calibration_color_scale,
             self._render_calibration_color_bias,
@@ -733,6 +902,16 @@ class GaussianModel:
         ):
             if isinstance(parameter, nn.Parameter):
                 parameter.requires_grad_(bool(self.use_render_calibration))
+
+    def set_detail_basis_only(self):
+        """Freeze the scene except the per-Gaussian RGB ODB coefficients."""
+        if self.optimizer is None:
+            raise RuntimeError("detail_basis_only requires an initialized optimizer")
+        trainable_groups = {"detail_rgb"}
+        for group in self.optimizer.param_groups:
+            requires_grad = group.get("name") in trainable_groups
+            for parameter in group.get("params", []):
+                parameter.requires_grad_(requires_grad)
 
     def _parameter_from_tensor(self, tensor, requires_grad):
         return nn.Parameter(tensor.detach().clone(), requires_grad=requires_grad)
@@ -796,6 +975,66 @@ class GaussianModel:
             "rotation": self.get_rotation,
             "cov3D_precomp": self.get_covariance(scaling_modifier=scaling_modifier, scaling=scaling, rotation=self._rotation),
         }
+
+    def get_detail_coefficients(self, modality):
+        """Return per-Gaussian detail coefficients as [N, 5, 3]."""
+        if not self.use_detail_basis:
+            return self._detail_rgb.new_zeros(self._detail_rgb.shape) if modality == "rgb" else self._detail_thermal.new_zeros(self._detail_thermal.shape)
+        return self._detail_rgb if modality == "rgb" else self._detail_thermal
+
+    def get_detail_regularization(self):
+        if not self.use_detail_basis or self._detail_rgb.numel() == 0:
+            return self._bgfc_regularization_zero()
+        # Retain the original RGB half of the two-branch regularizer.
+        return 0.5 * self._detail_rgb.abs().mean()
+
+    def get_detail_metrics(self):
+        if self._detail_rgb.numel() == 0:
+            return {"enabled": 0.0, "rgb_abs_mean": 0.0, "thermal_abs_mean": 0.0}
+        return {
+            "enabled": float(self.use_detail_basis),
+            "rgb_abs_mean": float(self._detail_rgb.detach().abs().mean().item()),
+            "thermal_abs_mean": 0.0,
+        }
+
+    def get_ir_kernel_render_params(self, base_params, scaling_modifier=1.0):
+        """Build IR residual Gaussians while detaching all parent geometry.
+
+        ``colors_precomp`` contains signed, view-independent IR corrections.
+        The zero initialization gives zero radiance, centered kernels with 0.7
+        times parent widths, and the same opacity as the parent Gaussian.
+        """
+        raw = self._ir_kernel
+        means = base_params["means3D"].detach()
+        scales = base_params["scales"].detach()
+        rotations = base_params["rotations"].detach()
+        local_offset = 0.75 * torch.tanh(raw[:, 3:6]) * scales
+        offsets = torch.bmm(build_rotation(rotations), local_offset.unsqueeze(-1)).squeeze(-1)
+        kernel_means = means + offsets
+        kernel_scales = scales * (0.7 * torch.exp(np.log(2.0) * torch.tanh(raw[:, 6:9])))
+        kernel_opacity = (base_params["opacity"].detach() * (2.0 * torch.sigmoid(raw[:, 9:10]))).clamp(max=0.99)
+        colors = self.ir_kernel_amplitude * torch.tanh(raw[:, :3])
+        return {
+            "means3D": kernel_means,
+            "xyz": kernel_means,
+            "colors_precomp": colors,
+            "opacity": kernel_opacity,
+            "scales": kernel_scales,
+            "scaling": kernel_scales,
+            "rotations": rotations,
+            "rotation": rotations,
+            "cov3D_precomp": self.get_covariance(
+                scaling_modifier=scaling_modifier,
+                scaling=kernel_scales,
+                rotation=rotations,
+            ),
+        }
+
+    def get_ir_kernel_regularization(self):
+        if not self.use_ir_kernel or self._ir_kernel.numel() == 0:
+            return self._bgfc_regularization_zero()
+        bounded = torch.tanh(self._ir_kernel)
+        return bounded[:, :3].square().mean() + 0.01 * bounded[:, 3:].square().mean()
 
     @property
     def get_scaling(self):
@@ -952,24 +1191,27 @@ class GaussianModel:
     def get_rgb_render_params(self, scaling_modifier=1.0, bgfc_outputs=None):
         if bgfc_outputs is None:
             bgfc_outputs = self.get_bgfc_outputs()
-        return self._build_render_params(
+        params = self._build_render_params(
             means3D=self.get_xyz,
             scaling=self.get_scaling,
             features=bgfc_outputs["updated_rgb_features"],
             opacity=self.get_rgb_opacity,
             scaling_modifier=scaling_modifier,
         )
+        params["detail_coefficients"] = self.get_detail_coefficients("rgb")
+        return params
 
     def get_thermal_render_params(self, scaling_modifier=1.0, bgfc_outputs=None):
         if bgfc_outputs is None:
             bgfc_outputs = self.get_bgfc_outputs()
-        return self._build_render_params(
+        params = self._build_render_params(
             means3D=self.get_thermal_xyz,
             scaling=self.get_thermal_scaling,
             features=bgfc_outputs["updated_thermal_features"],
             opacity=self.get_thermal_opacity,
             scaling_modifier=scaling_modifier,
         )
+        return params
 
     def get_at_gom_regularization(self):
         if not self.use_at_gom:
@@ -1555,15 +1797,17 @@ class GaussianModel:
                 torch.zeros_like(positive_depth),
             )
 
-        focal_x = float(fov2focal(float(camera.FoVx), width))
-        focal_y = float(fov2focal(float(camera.FoVy), height))
-        pixel_x = focal_x * (camera_points[:, 0] / depth.clamp_min(1e-6)) + (width * 0.5)
-        pixel_y = focal_y * (camera_points[:, 1] / depth.clamp_min(1e-6)) + (height * 0.5)
         if hasattr(camera, "calibration_intrinsics"):
             from utils.camera_calibration import project_sensor_pixels
-            sensor_pixels = project_sensor_pixels(camera_points, camera.calibration_intrinsics,
-                                                   camera.calibration_distortion)
+            sensor_pixels = project_sensor_pixels(
+                camera_points, camera.calibration_intrinsics, camera.calibration_distortion
+            )
             pixel_x, pixel_y = sensor_pixels.unbind(-1)
+        else:
+            focal_x = float(fov2focal(float(camera.FoVx), width))
+            focal_y = float(fov2focal(float(camera.FoVy), height))
+            pixel_x = focal_x * (camera_points[:, 0] / depth.clamp_min(1e-6)) + (width * 0.5)
+            pixel_y = focal_y * (camera_points[:, 1] / depth.clamp_min(1e-6)) + (height * 0.5)
 
         valid = (
             positive_depth
@@ -1669,6 +1913,9 @@ class GaussianModel:
         self._scaling = nn.Parameter(scales.requires_grad_(True))
         self._rotation = nn.Parameter(rots.requires_grad_(True))
         self._opacity_base = nn.Parameter(opacities.requires_grad_(True))
+        self._detail_rgb = self._make_zero_detail_parameter(self._xyz)
+        self._detail_thermal = self._make_zero_detail_parameter(self._xyz)
+        self._ir_kernel = self._make_zero_ir_kernel_parameter(self._xyz)
         self._at_gom_opacity_bias_rgb = nn.Parameter(torch.zeros_like(opacities), requires_grad=False)
         self._at_gom_opacity_bias_th = nn.Parameter(torch.zeros_like(opacities).requires_grad_(True))
         self._at_gom_center_residual = nn.Parameter(torch.zeros_like(fused_point_cloud).requires_grad_(True))
@@ -1680,12 +1927,40 @@ class GaussianModel:
 
     def training_setup(self, training_args):
         self.percent_dense = training_args.percent_dense
+        self.ir_kernel_lr = float(getattr(training_args, "ir_kernel_lr", 0.003))
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.denom = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.cmo_lifecycle_state = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.bgfc_gate_target_std = getattr(training_args, "bgfc_gate_target_std", self.bgfc_gate_target_std)
         self.cmo_state_ema = getattr(training_args, "cmo_state_ema", self.cmo_state_ema)
         self.save_cmo_states_enabled = getattr(training_args, "save_cmo_states", self.save_cmo_states_enabled)
+        self.cmo_gradient_consensus_floor = min(
+            1.0,
+            max(
+                0.0,
+                float(
+                    getattr(
+                        training_args,
+                        "cmo_gradient_consensus_floor",
+                        self.cmo_gradient_consensus_floor,
+                    )
+                ),
+            ),
+        )
+        self.cmo_gradient_single_view_discount = min(
+            1.0,
+            max(
+                0.0,
+                float(
+                    getattr(
+                        training_args,
+                        "cmo_gradient_single_view_discount",
+                        self.cmo_gradient_single_view_discount,
+                    )
+                ),
+            ),
+        )
+        self.last_cmo_gradient_diagnostics = {}
         self.cmo_enabled = getattr(training_args, "use_cmo", self.cmo_enabled)
         self.cmo_warmup_iters = max(
             getattr(training_args, "cmo_state_warmup_iters", 0),
@@ -1759,6 +2034,9 @@ class GaussianModel:
             {'params': [self._thermal_dc], 'lr': training_args.thermal_feature_lr, "name": "thermal_dc", "per_anchor": True},
             {'params': [self._thermal_rest], 'lr': training_args.thermal_feature_lr / 20.0, "name": "t_rest", "per_anchor": True},
             {'params': [self._opacity_base], 'lr': training_args.opacity_lr, "name": "opacity_base", "per_anchor": True},
+            {'params': [self._detail_rgb], 'lr': getattr(training_args, "detail_basis_lr", 0.001), "name": "detail_rgb", "per_anchor": True},
+            {'params': [self._detail_thermal], 'lr': 0.0, "name": "detail_thermal", "per_anchor": True},
+            {'params': [self._ir_kernel], 'lr': self.ir_kernel_lr if self.use_ir_kernel else 0.0, "name": "ir_kernel", "per_anchor": True},
             {'params': [self._at_gom_opacity_bias_th], 'lr': training_args.opacity_lr, "name": "at_gom_opacity_bias_th", "per_anchor": True},
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling", "per_anchor": True},
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation", "per_anchor": True},
@@ -1867,6 +2145,12 @@ class GaussianModel:
         l.append('opacity_base')
         l.append('at_gom_opacity_bias_rgb')
         l.append('at_gom_opacity_bias_th')
+        for i in range(self._detail_rgb.shape[1] * self._detail_rgb.shape[2]):
+            l.append('detail_rgb_{}'.format(i))
+        for i in range(self._detail_thermal.shape[1] * self._detail_thermal.shape[2]):
+            l.append('detail_thermal_{}'.format(i))
+        for i in range(10):
+            l.append('ir_kernel_{}'.format(i))
         for i in range(self._at_gom_center_residual.shape[1]):
             l.append('at_gom_center_residual_{}'.format(i))
         for i in range(self._at_gom_log_scale_residual.shape[1]):
@@ -1890,6 +2174,9 @@ class GaussianModel:
         opacity_base = self._opacity_base.detach().cpu().numpy()
         at_gom_opacity_bias_rgb = self._at_gom_opacity_bias_rgb.detach().cpu().numpy()
         at_gom_opacity_bias_th = self._at_gom_opacity_bias_th.detach().cpu().numpy()
+        detail_rgb = self._detail_rgb.detach().flatten(start_dim=1).contiguous().cpu().numpy()
+        detail_thermal = self._detail_thermal.detach().flatten(start_dim=1).contiguous().cpu().numpy()
+        ir_kernel = self._ir_kernel.detach().cpu().numpy()
         at_gom_center_residual = self._at_gom_center_residual.detach().cpu().numpy()
         at_gom_log_scale_residual = self._at_gom_log_scale_residual.detach().cpu().numpy()
         scale = self._scaling.detach().cpu().numpy()
@@ -1910,6 +2197,9 @@ class GaussianModel:
                 opacity_base,
                 at_gom_opacity_bias_rgb,
                 at_gom_opacity_bias_th,
+                detail_rgb,
+                detail_thermal,
+                ir_kernel,
                 at_gom_center_residual,
                 at_gom_log_scale_residual,
                 scale,
@@ -1919,7 +2209,13 @@ class GaussianModel:
         )
         elements[:] = list(map(tuple, attributes))
         el = PlyElement.describe(elements, 'vertex')
-        PlyData([el]).write(path)
+        PlyData(
+            [el],
+            comments=[
+                "ir_kernel_enabled {}".format(int(self.use_ir_kernel)),
+                "ir_kernel_amplitude {}".format(self.ir_kernel_amplitude),
+            ],
+        ).write(path)
 
 
     def reset_opacity(self):
@@ -1939,6 +2235,12 @@ class GaussianModel:
     def load_ply(self, path):
         plydata = PlyData.read(path)
         property_names = {p.name for p in plydata.elements[0].properties}
+        for comment in plydata.comments:
+            if comment.startswith("ir_kernel_enabled "):
+                self.use_ir_kernel = bool(int(comment.split()[1])) or self.use_ir_kernel
+            elif comment.startswith("ir_kernel_amplitude "):
+                self.ir_kernel_amplitude = float(comment.split()[1])
+        self.ir_kernel_runtime_enabled = self.use_ir_kernel
 
         xyz = np.stack((np.asarray(plydata.elements[0]["x"]),
                         np.asarray(plydata.elements[0]["y"]),
@@ -1958,6 +2260,22 @@ class GaussianModel:
             if "at_gom_opacity_bias_th" in property_names
             else np.zeros((xyz.shape[0], 1))
         )
+        detail_width = self.detail_basis_directions * 3
+        detail_rgb = np.zeros((xyz.shape[0], detail_width), dtype=np.float32)
+        detail_thermal = np.zeros((xyz.shape[0], detail_width), dtype=np.float32)
+        for idx in range(detail_width):
+            rgb_name = "detail_rgb_{}".format(idx)
+            thermal_name = "detail_thermal_{}".format(idx)
+            if rgb_name in property_names:
+                detail_rgb[:, idx] = np.asarray(plydata.elements[0][rgb_name])
+            if thermal_name in property_names:
+                detail_thermal[:, idx] = np.asarray(plydata.elements[0][thermal_name])
+
+        ir_kernel = np.zeros((xyz.shape[0], 10), dtype=np.float32)
+        for idx in range(10):
+            name = "ir_kernel_{}".format(idx)
+            if name in property_names:
+                ir_kernel[:, idx] = np.asarray(plydata.elements[0][name])
 
 
         features_dc = np.zeros((xyz.shape[0], 3, 1))
@@ -2019,6 +2337,9 @@ class GaussianModel:
         self._thermal_dc = nn.Parameter(torch.tensor(thermal_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))
         self._thermal_rest = nn.Parameter(torch.tensor(thermal_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))
         self._opacity_base = nn.Parameter(torch.tensor(opacity_base, dtype=torch.float, device="cuda").requires_grad_(True))
+        self._detail_rgb = nn.Parameter(torch.tensor(detail_rgb.reshape(-1, self.detail_basis_directions, 3), dtype=torch.float, device="cuda").requires_grad_(True))
+        self._detail_thermal = nn.Parameter(torch.tensor(detail_thermal.reshape(-1, self.detail_basis_directions, 3), dtype=torch.float, device="cuda").requires_grad_(True))
+        self._ir_kernel = self._load_ir_kernel_parameter(ir_kernel, self._xyz)
         self._at_gom_opacity_bias_rgb = nn.Parameter(torch.tensor(at_gom_opacity_bias_rgb, dtype=torch.float, device="cuda").requires_grad_(True))
         self._at_gom_opacity_bias_th = nn.Parameter(torch.tensor(at_gom_opacity_bias_th, dtype=torch.float, device="cuda").requires_grad_(True))
         self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(True))
@@ -2082,6 +2403,9 @@ class GaussianModel:
         self._thermal_dc = optimizable_tensors["thermal_dc"]
         self._thermal_rest = optimizable_tensors["t_rest"]
         self._opacity_base = optimizable_tensors["opacity_base"]
+        self._detail_rgb = optimizable_tensors.get("detail_rgb", self._masked_parameter(self._detail_rgb, valid_points_mask))
+        self._detail_thermal = optimizable_tensors.get("detail_thermal", self._masked_parameter(self._detail_thermal, valid_points_mask))
+        self._ir_kernel = optimizable_tensors.get("ir_kernel", self._masked_parameter(self._ir_kernel, valid_points_mask))
         self._at_gom_opacity_bias_rgb = optimizable_tensors.get("at_gom_opacity_bias_rgb", self._masked_parameter(self._at_gom_opacity_bias_rgb, valid_points_mask))
         self._at_gom_opacity_bias_th = optimizable_tensors.get("at_gom_opacity_bias_th", self._masked_parameter(self._at_gom_opacity_bias_th, valid_points_mask))
         self._scaling = optimizable_tensors["scaling"]
@@ -2140,15 +2464,27 @@ class GaussianModel:
         new_rotation,
         new_at_gom_center_residual,
         new_at_gom_log_scale_residual,
+        new_detail_rgb=None,
+        new_detail_thermal=None,
         new_cmo_states=None,
+        new_ir_kernel=None,
     ):
         previous_num_anchors = self.get_xyz.shape[0]
+        if new_detail_rgb is None:
+            new_detail_rgb = self._detail_rgb.new_zeros((new_xyz.shape[0], self.detail_basis_directions, 3))
+        if new_detail_thermal is None:
+            new_detail_thermal = self._detail_thermal.new_zeros((new_xyz.shape[0], self.detail_basis_directions, 3))
+        if new_ir_kernel is None:
+            new_ir_kernel = self._ir_kernel.new_zeros((new_xyz.shape[0], 10))
         d = {"xyz": new_xyz,
         "f_dc": new_features_dc,
         "f_rest": new_features_rest,
         "thermal_dc": new_thermal_dc,
         "t_rest": new_thermal_rest,
         "opacity_base": new_opacity_base,
+        "detail_rgb": new_detail_rgb,
+        "detail_thermal": new_detail_thermal,
+        "ir_kernel": new_ir_kernel,
         "at_gom_opacity_bias_rgb": new_at_gom_opacity_bias_rgb,
         "at_gom_opacity_bias_th": new_at_gom_opacity_bias_th,
         "scaling" : new_scaling,
@@ -2163,6 +2499,9 @@ class GaussianModel:
         self._thermal_dc = optimizable_tensors["thermal_dc"]
         self._thermal_rest = optimizable_tensors["t_rest"]
         self._opacity_base = optimizable_tensors["opacity_base"]
+        self._detail_rgb = optimizable_tensors["detail_rgb"]
+        self._detail_thermal = optimizable_tensors["detail_thermal"]
+        self._ir_kernel = optimizable_tensors["ir_kernel"]
         self._at_gom_opacity_bias_rgb = optimizable_tensors.get(
             "at_gom_opacity_bias_rgb", self._concatenated_parameter(self._at_gom_opacity_bias_rgb, new_at_gom_opacity_bias_rgb)
         )
@@ -2326,6 +2665,9 @@ class GaussianModel:
         new_thermal_dc = self._thermal_dc[selected_pts_mask].repeat(N,1,1)
         new_thermal_rest = self._thermal_rest[selected_pts_mask].repeat(N,1,1)
         new_opacity_base = self._opacity_base[selected_pts_mask].repeat(N,1)
+        new_detail_rgb = self._detail_rgb[selected_pts_mask].repeat(N,1,1)
+        new_detail_thermal = self._detail_thermal[selected_pts_mask].repeat(N,1,1)
+        new_ir_kernel = self._ir_kernel[selected_pts_mask].repeat(N,1)
         new_at_gom_opacity_bias_rgb = self._at_gom_opacity_bias_rgb[selected_pts_mask].repeat(N,1)
         new_at_gom_opacity_bias_th = self._at_gom_opacity_bias_th[selected_pts_mask].repeat(N,1)
         new_at_gom_center_residual = self._at_gom_center_residual[selected_pts_mask].repeat(N,1)
@@ -2344,6 +2686,9 @@ class GaussianModel:
             new_rotation,
             new_at_gom_center_residual,
             new_at_gom_log_scale_residual,
+            new_detail_rgb,
+            new_detail_thermal,
+            new_ir_kernel=new_ir_kernel,
         )
 
         prune_filter = torch.cat((selected_pts_mask, torch.zeros(N * selected_pts_mask.sum(), device="cuda", dtype=bool)))
@@ -2364,6 +2709,9 @@ class GaussianModel:
         new_thermal_dc = self._thermal_dc[selected_pts_mask]
         new_thermal_rest = self._thermal_rest[selected_pts_mask]
         new_opacity_base = self._opacity_base[selected_pts_mask]
+        new_detail_rgb = self._detail_rgb[selected_pts_mask]
+        new_detail_thermal = self._detail_thermal[selected_pts_mask]
+        new_ir_kernel = self._ir_kernel[selected_pts_mask]
         new_at_gom_opacity_bias_rgb = self._at_gom_opacity_bias_rgb[selected_pts_mask]
         new_at_gom_opacity_bias_th = self._at_gom_opacity_bias_th[selected_pts_mask]
         new_scaling = self._scaling[selected_pts_mask]
@@ -2384,6 +2732,9 @@ class GaussianModel:
             new_rotation,
             new_at_gom_center_residual,
             new_at_gom_log_scale_residual,
+            new_detail_rgb,
+            new_detail_thermal,
+            new_ir_kernel=new_ir_kernel,
         )
 
     def _build_prune_mask(self, min_opacity, extent, max_screen_size, iteration=None):
@@ -2453,11 +2804,97 @@ class GaussianModel:
         )
         self.denom[update_filter] += weight
 
+    def add_cmo_densification_stats(
+        self,
+        rgb_viewspace_point_tensor,
+        rgb_update_filter,
+        thermal_viewspace_point_tensor=None,
+        thermal_update_filter=None,
+        rgb_weight=1.0,
+        thermal_weight=1.0,
+    ):
+        def _extract_grad_tensor(viewspace_point_tensor, update_filter, weight):
+            if viewspace_point_tensor is None or viewspace_point_tensor.grad is None:
+                return None
+            grad_tensor = torch.zeros((num_anchors, 2), device=device)
+            grad_tensor[update_filter] = viewspace_point_tensor.grad[update_filter, :2] * float(weight)
+            return grad_tensor
+
+        num_anchors = self.get_xyz.shape[0]
+        device = self.get_xyz.device
+
+        rgb_update_filter = rgb_update_filter.detach().reshape(-1).bool()
+        if rgb_update_filter.numel() != num_anchors:
+            raise ValueError("RGB densification stats expect one visibility value per anchor.")
+
+        if thermal_update_filter is None:
+            thermal_update_filter = torch.zeros_like(rgb_update_filter)
+        else:
+            thermal_update_filter = thermal_update_filter.detach().reshape(-1).bool()
+            if thermal_update_filter.numel() != num_anchors:
+                raise ValueError("Thermal densification stats expect one visibility value per anchor.")
+
+        union_filter = rgb_update_filter | thermal_update_filter
+        if union_filter.numel() == 0 or (not torch.any(union_filter)):
+            return
+
+        rgb_grad = _extract_grad_tensor(rgb_viewspace_point_tensor, rgb_update_filter, rgb_weight)
+        thermal_grad = _extract_grad_tensor(thermal_viewspace_point_tensor, thermal_update_filter, thermal_weight)
+
+        rgb_grad_norm = torch.zeros((num_anchors, 1), device=device)
+        if rgb_grad is not None:
+            rgb_grad_norm = torch.norm(rgb_grad, dim=-1, keepdim=True)
+
+        thermal_grad_norm = torch.zeros((num_anchors, 1), device=device)
+        if thermal_grad is not None:
+            thermal_grad_norm = torch.norm(thermal_grad, dim=-1, keepdim=True)
+
+        active_modality_count = rgb_update_filter.float().unsqueeze(1) + thermal_update_filter.float().unsqueeze(1)
+        active_modality_count = active_modality_count.clamp_min(1.0)
+
+        combined_grad_norm = torch.sqrt((rgb_grad_norm.square() + thermal_grad_norm.square()) / active_modality_count)
+
+        both_visible = rgb_update_filter & thermal_update_filter
+        consensus_weight = torch.full(
+            (num_anchors, 1),
+            self.cmo_gradient_single_view_discount,
+            device=device,
+        )
+        consensus_balance = torch.zeros((num_anchors, 1), device=device)
+        if torch.any(both_visible):
+            dominant_grad_norm = torch.maximum(rgb_grad_norm, thermal_grad_norm).clamp_min(1e-6)
+            consensus_balance[both_visible] = (
+                torch.minimum(rgb_grad_norm[both_visible], thermal_grad_norm[both_visible])
+                / dominant_grad_norm[both_visible]
+            )
+            consensus_weight[both_visible] = (
+                self.cmo_gradient_consensus_floor
+                + (1.0 - self.cmo_gradient_consensus_floor) * consensus_balance[both_visible]
+            )
+
+        combined_grad_norm = combined_grad_norm * consensus_weight
+
+        self.xyz_gradient_accum[union_filter] += combined_grad_norm[union_filter]
+        # Match the legacy shared-means behavior: each training view contributes one
+        # densification observation, even if both branches render the anchor.
+        self.denom[union_filter] += 1
+        self.last_cmo_gradient_diagnostics = {
+            "union_visible_count": float(union_filter.sum().item()),
+            "both_visible_count": float((rgb_update_filter & thermal_update_filter).sum().item()),
+            "single_visible_count": float((union_filter & (~both_visible)).sum().item()),
+            "consensus_floor": float(self.cmo_gradient_consensus_floor),
+            "single_view_discount": float(self.cmo_gradient_single_view_discount),
+            "consensus_balance_mean": float(
+                consensus_balance[both_visible].mean().item() if torch.any(both_visible) else 0.0
+            ),
+        }
+
     def save_feature_modules(self, path):
         if (
             (not self.use_bgfc or self.bgfc is None)
             and (not self.use_color_refinement or self.color_refinement is None)
             and not self.use_render_calibration
+            and not self.use_ir_kernel
         ):
             return
 
@@ -2468,6 +2905,8 @@ class GaussianModel:
         torch.save(
             {
                 "use_bgfc": self.use_bgfc,
+                "use_ir_kernel": self.use_ir_kernel,
+                "ir_kernel_amplitude": self.ir_kernel_amplitude,
                 "bgfc_hidden_dim": self.bgfc_hidden_dim,
                 "bgfc_gate_init_bias": self.bgfc_gate_init_bias,
                 "bgfc_thermal_grayscale_context": self.bgfc_thermal_grayscale_context,
@@ -2492,6 +2931,9 @@ class GaussianModel:
             return
 
         module_state = torch.load(feature_module_path, map_location="cuda")
+        self.use_ir_kernel = bool(module_state.get("use_ir_kernel", self.use_ir_kernel))
+        self.ir_kernel_runtime_enabled = self.use_ir_kernel
+        self.ir_kernel_amplitude = float(module_state.get("ir_kernel_amplitude", self.ir_kernel_amplitude))
         self.bgfc_hidden_dim = module_state.get("bgfc_hidden_dim", self.bgfc_hidden_dim)
         self.bgfc_gate_init_bias = module_state.get("bgfc_gate_init_bias", self.bgfc_gate_init_bias)
         self.bgfc_thermal_grayscale_context = module_state.get(

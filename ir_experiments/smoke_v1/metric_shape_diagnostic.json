@@ -1,0 +1,75 @@
+{
+  "color": {
+    "views": [
+      {
+        "view": "00000.png",
+        "correct_global_psnr": 18.82771289234895,
+        "legacy_train_report_mean_channel_psnr": 18.852043125986242
+      },
+      {
+        "view": "00001.png",
+        "correct_global_psnr": 19.955970851443546,
+        "legacy_train_report_mean_channel_psnr": 19.957410994202267
+      },
+      {
+        "view": "00002.png",
+        "correct_global_psnr": 17.433153611583087,
+        "legacy_train_report_mean_channel_psnr": 17.49563320441075
+      },
+      {
+        "view": "00003.png",
+        "correct_global_psnr": 17.682802798887213,
+        "legacy_train_report_mean_channel_psnr": 17.68421683190957
+      },
+      {
+        "view": "00004.png",
+        "correct_global_psnr": 18.302536192480222,
+        "legacy_train_report_mean_channel_psnr": 18.312888331445034
+      },
+      {
+        "view": "00005.png",
+        "correct_global_psnr": 19.790087652755577,
+        "legacy_train_report_mean_channel_psnr": 19.80719549241927
+      }
+    ],
+    "mean_correct_global_psnr": 18.665377333249765,
+    "mean_legacy_train_report_mean_channel_psnr": 18.684897996728854
+  },
+  "thermal": {
+    "views": [
+      {
+        "view": "00000.png",
+        "correct_global_psnr": 16.798881231537997,
+        "legacy_train_report_mean_channel_psnr": 20.36846023845456
+      },
+      {
+        "view": "00001.png",
+        "correct_global_psnr": 16.962457241784797,
+        "legacy_train_report_mean_channel_psnr": 19.514196878049354
+      },
+      {
+        "view": "00002.png",
+        "correct_global_psnr": 13.458980404050154,
+        "legacy_train_report_mean_channel_psnr": 14.724937789685677
+      },
+      {
+        "view": "00003.png",
+        "correct_global_psnr": 14.356628110846506,
+        "legacy_train_report_mean_channel_psnr": 17.098977792432656
+      },
+      {
+        "view": "00004.png",
+        "correct_global_psnr": 16.115408163008407,
+        "legacy_train_report_mean_channel_psnr": 19.373406705753126
+      },
+      {
+        "view": "00005.png",
+        "correct_global_psnr": 15.790422944403488,
+        "legacy_train_report_mean_channel_psnr": 20.321999739967257
+      }
+    ],
+    "mean_correct_global_psnr": 15.580463015938557,
+    "mean_legacy_train_report_mean_channel_psnr": 18.566996524057107
+  },
+  "finding": "train.training_report passes CHW to psnr; it averages per-channel dB. Official metrics.py passes NCHW, evaluating all3 channels together. Only official PNG metrics are used for acceptance. Not an export regression."
+}

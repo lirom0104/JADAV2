@@ -1,0 +1,20 @@
+{
+  "created_utc": "2026-10-05T17:30:34.874889+00:00",
+  "script": "/home/lf/code/Our_Project-New-2-1/ir_experiments/ablate_kernel.py",
+  "script_sha256": "3e0c2553938181e66de6e545528932e270112a7b6c6afbc103aec833d1f5f175",
+  "syntax_verified": true,
+  "tests_run": 6,
+  "successful": true,
+  "cuda_initialized": false,
+  "scope": "Final-script CPU logic verification; no GPU jobs or core/frozen-source modifications",
+  "checks": [
+    "official_quantization_exact_and_input_unchanged",
+    "psnr_matches_global_NCHW_convention",
+    "kernel_stats_require_all_ten_finite_nonzero_columns",
+    "checkpoint_budget_and_parameter_validation",
+    "safe_saved_configuration_parsing",
+    "incomplete_scene_rejected_before_cuda"
+  ],
+  "cli_help_verified": true,
+  "cli_incomplete_scene_exit_code": 1
+}

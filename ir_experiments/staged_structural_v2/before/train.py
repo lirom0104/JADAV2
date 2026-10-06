@@ -11,7 +11,6 @@
 
 import os
 import json
-import math
 import torch
 from random import randint
 from torchvision.utils import save_image
@@ -293,9 +292,6 @@ def _restore_ema_export_backup(backup, gaussians):
             module.load_state_dict(saved_state, strict=False)
 
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
-    ir_kernel_ssim_weight = float(getattr(opt, "ir_kernel_ssim_weight", 0.0))
-    if not math.isfinite(ir_kernel_ssim_weight) or ir_kernel_ssim_weight < 0.0:
-        raise ValueError("ir_kernel_ssim_weight must be finite and nonnegative")
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset, opt)
     reconstruction_criterion = build_reconstruction_criterion(
@@ -591,10 +587,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             ir_kernel_fit = F.mse_loss(ir_prediction, gt_thermal)
             ir_kernel_reg = gaussians.get_ir_kernel_regularization()
             loss = loss + opt.ir_kernel_mse_weight * ir_kernel_fit + opt.ir_kernel_reg_weight * ir_kernel_reg
-            if ir_kernel_ssim_weight > 0.0:
-                # Fit only the IR kernel; the base prediction stays detached.
-                ir_kernel_ssim_loss = 1.0 - ssim(ir_prediction.unsqueeze(0), gt_thermal.unsqueeze(0))
-                loss = loss + ir_kernel_ssim_weight * ir_kernel_ssim_loss
 
         torch.cuda.synchronize()
         loss.backward()
@@ -666,8 +658,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             train_metric_scalars["color_refinement/reg_weight"] = color_refinement_reg_weight
             if gaussians.ir_kernel_runtime_enabled:
                 train_metric_scalars["ir_kernel/train_mse"] = ir_kernel_fit.item()
-                if ir_kernel_ssim_weight > 0.0:
-                    train_metric_scalars["ir_kernel/train_ssim_loss"] = ir_kernel_ssim_loss.item()
                 train_metric_scalars["ir_kernel/regularization"] = ir_kernel_reg.item()
                 train_metric_scalars["ir_kernel/residual_abs_mean"] = render_pkg["ir_kernel_residual"].detach().abs().mean().item()
             if gaussians.last_cmo_gradient_diagnostics:

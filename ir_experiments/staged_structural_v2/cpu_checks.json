@@ -1,0 +1,27 @@
+{
+  "check_script_sha256": "9cf017ebb64b1b737c55df2dffba9cd20c9d86cd4db1b2a7803d906cee23141e",
+  "command": [
+    "/home/lf/miniconda3/envs/thermalgaussian/bin/python",
+    "ir_experiments/staged_structural_v2/check_cpu.py",
+    "--report",
+    "ir_experiments/staged_structural_v2/cpu_checks.json"
+  ],
+  "cuda_initialized": false,
+  "errors": 0,
+  "failures": 0,
+  "limitations": [
+    "CPU checks do not exercise the CUDA rasterizer, training, performance, or image quality.",
+    "CPU gradient test executes the staged training loss block with synthetic residuals; upstream rasterizer detach behavior is unchanged but not retested."
+  ],
+  "passed": true,
+  "patch_sha256": "785bd0ef5f5c40e17123ab0a41a34fc5460d22979302729eb3fc3ae2720827e3",
+  "python": "/home/lf/miniconda3/envs/thermalgaussian/bin/python",
+  "root_state": "before",
+  "staged_sha256": {
+    "arguments/__init__.py": "4388f0f3b931becb1009a2a63bed73127ef374826401823b77f18a9aef591006",
+    "ir_experiments/run_suite.py": "fda1abc7ee852399f350a45d34b62d14d4ce26b9b2178b487cf54236fa660b09",
+    "train.py": "585113cc4aaadae1ce93261cdc796a4781cf9c33333089b3341b8d6e0aad9ed9"
+  },
+  "tests_run": 10,
+  "torch_version": "2.10.0+cu128"
+}

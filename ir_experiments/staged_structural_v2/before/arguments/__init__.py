@@ -140,7 +140,6 @@ class OptimizationParams(ParamGroup):
         self.ir_kernel_start_iter = 18000
         self.ir_kernel_reg_weight = 0.0001
         self.ir_kernel_mse_weight = 1.0
-        self.ir_kernel_ssim_weight = 0.0
         self.color_refinement_reg_decay_start_iter = 15_000
         self.color_refinement_reg_decay_end_iter = 27_000
         self.bgfc_lr_scale = 0.1

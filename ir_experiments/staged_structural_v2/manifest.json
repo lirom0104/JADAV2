@@ -1,0 +1,82 @@
+{
+  "artifacts_sha256": {
+    "README.md": "ae8da85a279c3ced8f0005715c9e93fa4ccf15991ee8846ce97454c3fb338340",
+    "check_cpu.py": "9cf017ebb64b1b737c55df2dffba9cd20c9d86cd4db1b2a7803d906cee23141e",
+    "prepared_full10_plan.json": "f153c6402375a95bcaa5d4c8372320c428ad9171f3db0c87db5774cce6a71472",
+    "review.md": "82af3f5e178cfe562970b2e670b4d1a042bfcef2b59418c8419c111f1178bda7",
+    "verify_manifest.py": "60511e35f843f926619348955d240dabbc969f4aacee84302ccdf40e30d282ab"
+  },
+  "base_sha256": {
+    "arguments/__init__.py": "4ca91bb6c4a518ddb5d3db40be53ee9a4b15c3b2f6e7a1d24f5696adbf0740af",
+    "ir_experiments/run_suite.py": "f2441befaf06ea959269ada500b3d5ac4fbf8c4469d84327ee4b6f66ebc80de0",
+    "train.py": "92374656b05dcb6efa9eef13011598f8a065eb2a1f577a1e8256c937b3306802"
+  },
+  "base_source_directory": "/home/lf/code/Our_Project-New-2-1/ir_experiments/staged_structural_v2/before",
+  "changed_files": [
+    "arguments/__init__.py",
+    "train.py",
+    "ir_experiments/run_suite.py"
+  ],
+  "check_commands": [
+    "python -B ir_experiments/staged_structural_v2/verify_manifest.py --root-state before",
+    "git apply --check ir_experiments/staged_structural_v2/structural_v2.patch",
+    "CUDA_VISIBLE_DEVICES= PYTHONDONTWRITEBYTECODE=1 /home/lf/miniconda3/envs/thermalgaussian/bin/python -B ir_experiments/staged_structural_v2/check_cpu.py --report ir_experiments/staged_structural_v2/cpu_checks.json",
+    "python -B ir_experiments/staged_structural_v2/after/ir_experiments/run_suite.py run --repo /home/lf/code/Our_Project-New-2-1 --root output/ir_kernel_structural_v2_full10_01 --iterations 30000 --ir-kernel-ssim-weight 0.01 --dry-run > ir_experiments/staged_structural_v2/prepared_full10_plan.json"
+  ],
+  "cpu_check_result": {
+    "cuda_initialized": false,
+    "passed": true,
+    "report": "cpu_checks.json",
+    "report_sha256": "8ba977795a3bedf03e70fd135a222ce70906057027aca38b775c838ee853e80a",
+    "tests_run": 10
+  },
+  "created_utc": "2026-10-05T20:11:16.299368+00:00",
+  "documentation_review_updated_utc": "2026-10-05T20:26:33.869649+00:00",
+  "limitations": [
+    "CPU checks do not exercise the CUDA rasterizer, training, performance, or image quality.",
+    "CPU gradient test executes the staged training loss block with synthetic residuals; upstream rasterizer detach behavior is unchanged but not retested."
+  ],
+  "patch_file": "structural_v2.patch",
+  "patch_sha256": "785bd0ef5f5c40e17123ab0a41a34fc5460d22979302729eb3fc3ae2720827e3",
+  "proposal": {
+    "default_weight": 0.0,
+    "initialization": "fresh dataset/default seed/no checkpoint",
+    "ir_kernel_amplitude": 0.2,
+    "ir_kernel_lr": 0.003,
+    "ir_kernel_mse_weight": 1.0,
+    "ir_kernel_reg_weight": 0.0001,
+    "ir_kernel_ssim_weight": 0.01,
+    "ir_kernel_start_iter": 18000,
+    "iterations": 30000,
+    "parameter_columns": 10,
+    "selection": "pending full ten-scene v1 result"
+  },
+  "protected_frozen_sha256": {
+    "arguments/__init__.py": "4ca91bb6c4a518ddb5d3db40be53ee9a4b15c3b2f6e7a1d24f5696adbf0740af",
+    "gaussian_renderer/__init__.py": "108553241952a62c340c6813a1de4555d29cfe92ce978d751882575cee00ff67",
+    "ir_experiments/run_suite.py": "f2441befaf06ea959269ada500b3d5ac4fbf8c4469d84327ee4b6f66ebc80de0",
+    "render.py": "5d658f463a0c0590b1caa96182ddf03b21a9405bf9307c234668d2a70ae1dba5",
+    "scene/gaussian_model.py": "6d7f6ee5a3aadd292ee097e2c8a3bbcae889e868f27778049e183401ec4855e4",
+    "train.py": "92374656b05dcb6efa9eef13011598f8a065eb2a1f577a1e8256c937b3306802",
+    "utils/loss_utils.py": "aa7d2419fdc2e71caff10e964595c00bf75ee9f34b93330f91f77bc3fd27d258"
+  },
+  "protected_frozen_source_root": "/home/lf/code/Our_Project-New-2-1/output/ir_kernel_v1_20261005_run2/code_snapshot/source",
+  "protected_root_sha256": {
+    "arguments/__init__.py": "4ca91bb6c4a518ddb5d3db40be53ee9a4b15c3b2f6e7a1d24f5696adbf0740af",
+    "gaussian_renderer/__init__.py": "108553241952a62c340c6813a1de4555d29cfe92ce978d751882575cee00ff67",
+    "ir_experiments/run_suite.py": "f2441befaf06ea959269ada500b3d5ac4fbf8c4469d84327ee4b6f66ebc80de0",
+    "render.py": "5d658f463a0c0590b1caa96182ddf03b21a9405bf9307c234668d2a70ae1dba5",
+    "scene/gaussian_model.py": "6d7f6ee5a3aadd292ee097e2c8a3bbcae889e868f27778049e183401ec4855e4",
+    "train.py": "92374656b05dcb6efa9eef13011598f8a065eb2a1f577a1e8256c937b3306802",
+    "utils/loss_utils.py": "aa7d2419fdc2e71caff10e964595c00bf75ee9f34b93330f91f77bc3fd27d258"
+  },
+  "repo_root": "/home/lf/code/Our_Project-New-2-1",
+  "stage_root": "/home/lf/code/Our_Project-New-2-1/ir_experiments/staged_structural_v2",
+  "staged_sha256": {
+    "arguments/__init__.py": "4388f0f3b931becb1009a2a63bed73127ef374826401823b77f18a9aef591006",
+    "ir_experiments/run_suite.py": "fda1abc7ee852399f350a45d34b62d14d4ce26b9b2178b487cf54236fa660b09",
+    "train.py": "585113cc4aaadae1ce93261cdc796a4781cf9c33333089b3341b8d6e0aad9ed9"
+  },
+  "staged_source_directory": "/home/lf/code/Our_Project-New-2-1/ir_experiments/staged_structural_v2/after",
+  "status": "prepared_only_not_selected_or_launched"
+}

@@ -37,8 +37,9 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
 
 
-        image = render(view, gaussians, pipeline, background)["render_color"]
-        thermal = render(view, gaussians, pipeline, background)["render_thermal"]
+        rendered = render(view, gaussians, pipeline, background)
+        image = rendered["render_color"]
+        thermal = rendered["render_thermal"]
 
         gt_image = view.original_image.cuda()
         gt_thermal = view.original_thermal.cuda()
@@ -62,6 +63,12 @@ def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParam
             use_color_refinement=getattr(dataset, "use_color_refinement", False),
             color_refinement_hidden_dim=getattr(dataset, "color_refinement_hidden_dim", 16),
             color_refinement_max_residual=getattr(dataset, "color_refinement_max_residual", 0.06),
+            use_detail_basis=getattr(dataset, "use_detail_basis", False),
+            detail_basis_mode=getattr(dataset, "detail_basis_mode", "screen_dog"),
+            detail_basis_scale=getattr(dataset, "detail_basis_scale", 0.08),
+            detail_basis_thermal_scale=getattr(dataset, "detail_basis_thermal_scale", 0.06),
+            use_ir_kernel=getattr(dataset, "use_ir_kernel", False),
+            ir_kernel_amplitude=getattr(dataset, "ir_kernel_amplitude", 0.2),
         )
         scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
 

@@ -1,0 +1,695 @@
+{
+  "timestamp_utc": "2026-10-05T16:33:11Z",
+  "scope": "Five synthetic GPU 0 forward/backward cases; no training or environment changes",
+  "passed": true,
+  "all_bitwise_equal": false,
+  "absolute_tolerance": 1e-06,
+  "relative_tolerance": 1e-05,
+  "workspace_wrapper_sha256": "90c7c64022c6bd2498f99476df3eaa606ece8fd6ccc88df0ba236807247c48ea",
+  "script_sha256": "68104eb0657cee363f225ff0272cdd23c839eae6d05f5028b709b7a9758a50ea",
+  "commands": [
+    {
+      "command": [
+        "/home/lf/miniconda3/envs/JADA/bin/python",
+        "/home/lf/code/Our_Project-New-2-1/ir_experiments/verify_backend.py",
+        "--worker",
+        "JADA",
+        "--output",
+        "/home/lf/code/Our_Project-New-2-1/ir_experiments/backend_audit"
+      ],
+      "CUDA_VISIBLE_DEVICES": "0",
+      "LD_LIBRARY_PATH": "/home/lf/miniconda3/envs/JADA/lib:"
+    },
+    {
+      "command": [
+        "/home/lf/miniconda3/envs/thermalgaussian/bin/python",
+        "/home/lf/code/Our_Project-New-2-1/ir_experiments/verify_backend.py",
+        "--worker",
+        "thermalgaussian",
+        "--output",
+        "/home/lf/code/Our_Project-New-2-1/ir_experiments/backend_audit"
+      ],
+      "CUDA_VISIBLE_DEVICES": "0",
+      "LD_LIBRARY_PATH": "/home/lf/miniconda3/envs/thermalgaussian/lib:"
+    }
+  ],
+  "environments": {
+    "JADA": {
+      "environment": "JADA",
+      "python_executable": "/home/lf/miniconda3/envs/JADA/bin/python",
+      "python_version": "3.10.21 (main, Aug 27 2026, 14:42:07) [GCC 14.3.0]",
+      "torch_version": "2.10.0+cu128",
+      "cuda_version": "12.8",
+      "CUDA_VISIBLE_DEVICES": "0",
+      "device": "NVIDIA GeForce RTX 5090",
+      "backend_wrapper": "/home/lf/miniconda3/envs/JADA/lib/python3.10/site-packages/diff_gaussian_rasterization/__init__.py",
+      "backend_wrapper_sha256": "90c7c64022c6bd2498f99476df3eaa606ece8fd6ccc88df0ba236807247c48ea",
+      "backend_extension": "/home/lf/miniconda3/envs/JADA/lib/python3.10/site-packages/diff_gaussian_rasterization/_C.cpython-310-x86_64-linux-gnu.so",
+      "backend_extension_sha256": "b2ff4dcfa3fea2325cd610db75e9e31f55cbed321ef64728015c8784b8f0d577",
+      "supports_pstb": false,
+      "pstb_argument": "unsupported",
+      "cases": {
+        "positive": {
+          "thermal_min": 0.0,
+          "thermal_max": 0.45939040184020996,
+          "color_min": 0.0,
+          "color_max": 0.3314266800880432
+        },
+        "signed_mixed": {
+          "thermal_min": -0.34686478972435,
+          "thermal_max": 0.2901524603366852,
+          "color_min": -0.2501910924911499,
+          "color_max": 0.21049244701862335
+        },
+        "signed_single": {
+          "thermal_min": -0.24962756037712097,
+          "thermal_max": 0.0,
+          "color_min": 0.0,
+          "color_max": 0.10341712832450867
+        },
+        "sh": {
+          "thermal_min": 0.0,
+          "thermal_max": 0.5203710198402405,
+          "color_min": 0.0,
+          "color_max": 0.4920419156551361
+        },
+        "covariance": {
+          "thermal_min": 0.0,
+          "thermal_max": 0.46136847138404846,
+          "color_min": 0.0,
+          "color_max": 0.33287107944488525
+        }
+      },
+      "signed_color_linearity_max_absolute_error": 0.0,
+      "signed_color_finite_differences": {
+        "thermals_precomp": {
+          "analytic": -0.00022746225295122713,
+          "numeric": -0.00022746098693460226,
+          "absolute_error": 1.2660166248679161e-09
+        },
+        "opacities": {
+          "analytic": -0.00014372113218996674,
+          "numeric": -0.00014374381862580776,
+          "absolute_error": 2.2686435841023922e-08
+        }
+      },
+      "peak_gpu_memory_bytes": 181760
+    },
+    "thermalgaussian": {
+      "environment": "thermalgaussian",
+      "python_executable": "/home/lf/miniconda3/envs/thermalgaussian/bin/python",
+      "python_version": "3.10.19 (main, Oct 21 2025, 16:43:05) [GCC 11.2.0]",
+      "torch_version": "2.10.0+cu128",
+      "cuda_version": "12.8",
+      "CUDA_VISIBLE_DEVICES": "0",
+      "device": "NVIDIA GeForce RTX 5090",
+      "backend_wrapper": "/home/lf/miniconda3/envs/thermalgaussian/lib/python3.10/site-packages/diff_gaussian_rasterization/__init__.py",
+      "backend_wrapper_sha256": "ccfe95ae558880d8b342097fd7006cd2cf95cdefe1307088a33bad77461bad42",
+      "backend_extension": "/home/lf/miniconda3/envs/thermalgaussian/lib/python3.10/site-packages/diff_gaussian_rasterization/_C.cpython-310-x86_64-linux-gnu.so",
+      "backend_extension_sha256": "69dbb8c62800e83704213cd50042a2e417babfb333b4ff9d025cead7a1743f2a",
+      "supports_pstb": true,
+      "pstb_argument": "None explicitly",
+      "cases": {
+        "positive": {
+          "thermal_min": 0.0,
+          "thermal_max": 0.45939040184020996,
+          "color_min": 0.0,
+          "color_max": 0.3314266800880432
+        },
+        "signed_mixed": {
+          "thermal_min": -0.34686478972435,
+          "thermal_max": 0.2901524603366852,
+          "color_min": -0.2501910924911499,
+          "color_max": 0.21049244701862335
+        },
+        "signed_single": {
+          "thermal_min": -0.24962756037712097,
+          "thermal_max": 0.0,
+          "color_min": 0.0,
+          "color_max": 0.10341712832450867
+        },
+        "sh": {
+          "thermal_min": 0.0,
+          "thermal_max": 0.5203710198402405,
+          "color_min": 0.0,
+          "color_max": 0.4920419156551361
+        },
+        "covariance": {
+          "thermal_min": 0.0,
+          "thermal_max": 0.46136847138404846,
+          "color_min": 0.0,
+          "color_max": 0.33287107944488525
+        }
+      },
+      "signed_color_linearity_max_absolute_error": 0.0,
+      "signed_color_finite_differences": {
+        "thermals_precomp": {
+          "analytic": -0.00022746228205505759,
+          "numeric": -0.00022746098693460226,
+          "absolute_error": 1.2951204553246498e-09
+        },
+        "opacities": {
+          "analytic": -0.00014372114674188197,
+          "numeric": -0.00014374381862580776,
+          "absolute_error": 2.2671883925795555e-08
+        }
+      },
+      "peak_gpu_memory_bytes": 181760
+    }
+  },
+  "comparisons": {
+    "positive/thermal": {
+      "shape": [
+        3,
+        40,
+        48
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.45939040184020996,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "positive/color": {
+      "shape": [
+        3,
+        40,
+        48
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.3314266800880432,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "positive/radii": {
+      "shape": [
+        5
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 9.0,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "positive/loss": {
+      "shape": [],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.005350167863070965,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "positive/grad_means3D": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 8.149072527885437e-10,
+      "reference_max_absolute": 0.0022649543825536966,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "positive/grad_means2D": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 1.1641532182693481e-09,
+      "reference_max_absolute": 0.0025474950671195984,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "positive/grad_opacities": {
+      "shape": [
+        5,
+        1
+      ],
+      "max_absolute_error": 2.3283064365386963e-10,
+      "reference_max_absolute": 0.003117729676887393,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "positive/grad_scales": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 1.3969838619232178e-09,
+      "reference_max_absolute": 0.014191939495503902,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "positive/grad_rotations": {
+      "shape": [
+        5,
+        4
+      ],
+      "max_absolute_error": 7.275957614183426e-12,
+      "reference_max_absolute": 9.885147301247343e-05,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "positive/grad_thermals_precomp": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 4.0745362639427185e-10,
+      "reference_max_absolute": 0.0017305610235780478,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "positive/grad_colors_precomp": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 2.3283064365386963e-10,
+      "reference_max_absolute": 0.0012136149452999234,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_mixed/thermal": {
+      "shape": [
+        3,
+        40,
+        48
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.34686478972435,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "signed_mixed/color": {
+      "shape": [
+        3,
+        40,
+        48
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.2501910924911499,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "signed_mixed/radii": {
+      "shape": [
+        5
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 9.0,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "signed_mixed/loss": {
+      "shape": [],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.00010628321615513414,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "signed_mixed/grad_means3D": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 6.111804395914078e-10,
+      "reference_max_absolute": 0.0007899802876636386,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_mixed/grad_means2D": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 6.984919309616089e-10,
+      "reference_max_absolute": 0.0007663495489396155,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_mixed/grad_opacities": {
+      "shape": [
+        5,
+        1
+      ],
+      "max_absolute_error": 2.3283064365386963e-10,
+      "reference_max_absolute": 0.0014842057134956121,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_mixed/grad_scales": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 1.1641532182693481e-09,
+      "reference_max_absolute": 0.007140029687434435,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_mixed/grad_rotations": {
+      "shape": [
+        5,
+        4
+      ],
+      "max_absolute_error": 1.4551915228366852e-11,
+      "reference_max_absolute": 5.266110019874759e-05,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_mixed/grad_thermals_precomp": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 2.9103830456733704e-10,
+      "reference_max_absolute": 0.001730560907162726,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_mixed/grad_colors_precomp": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 2.3283064365386963e-10,
+      "reference_max_absolute": 0.0012136149452999234,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_single/thermal": {
+      "shape": [
+        3,
+        40,
+        48
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.24962756037712097,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "signed_single/color": {
+      "shape": [
+        3,
+        40,
+        48
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.10341712832450867,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "signed_single/radii": {
+      "shape": [
+        1
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 8.0,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "signed_single/loss": {
+      "shape": [],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 5.173961108084768e-05,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "signed_single/grad_means3D": {
+      "shape": [
+        1,
+        3
+      ],
+      "max_absolute_error": 2.9103830456733704e-11,
+      "reference_max_absolute": 0.00020035324268974364,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_single/grad_means2D": {
+      "shape": [
+        1,
+        3
+      ],
+      "max_absolute_error": 2.9103830456733704e-11,
+      "reference_max_absolute": 0.00022066474775783718,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_single/grad_opacities": {
+      "shape": [
+        1,
+        1
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.00014372114674188197,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "signed_single/grad_scales": {
+      "shape": [
+        1,
+        3
+      ],
+      "max_absolute_error": 2.842170943040401e-14,
+      "reference_max_absolute": 0.0004937375197187066,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_single/grad_rotations": {
+      "shape": [
+        1,
+        4
+      ],
+      "max_absolute_error": 3.552713678800501e-13,
+      "reference_max_absolute": 8.762482934798754e-07,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_single/grad_thermals_precomp": {
+      "shape": [
+        1,
+        3
+      ],
+      "max_absolute_error": 1.7462298274040222e-10,
+      "reference_max_absolute": 0.0008732451242394745,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "signed_single/grad_colors_precomp": {
+      "shape": [
+        1,
+        3
+      ],
+      "max_absolute_error": 2.3283064365386963e-10,
+      "reference_max_absolute": 0.0006109726964496076,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "sh/thermal": {
+      "shape": [
+        3,
+        40,
+        48
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.5203710198402405,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "sh/color": {
+      "shape": [
+        3,
+        40,
+        48
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.4920419156551361,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "sh/radii": {
+      "shape": [
+        5
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 9.0,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "sh/loss": {
+      "shape": [],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.005950544495135546,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "sh/grad_means3D": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 6.984919309616089e-10,
+      "reference_max_absolute": 0.0028239544481039047,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "sh/grad_means2D": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 2.3283064365386963e-10,
+      "reference_max_absolute": 0.0022625569254159927,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "sh/grad_opacities": {
+      "shape": [
+        5,
+        1
+      ],
+      "max_absolute_error": 4.656612873077393e-10,
+      "reference_max_absolute": 0.004013212397694588,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "sh/grad_scales": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 4.6566128730773926e-09,
+      "reference_max_absolute": 0.016177743673324585,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "sh/grad_rotations": {
+      "shape": [
+        5,
+        4
+      ],
+      "max_absolute_error": 5.820766091346741e-11,
+      "reference_max_absolute": 0.00015255268954206258,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "sh/grad_thermal_shs": {
+      "shape": [
+        5,
+        16,
+        3
+      ],
+      "max_absolute_error": 1.1641532182693481e-10,
+      "reference_max_absolute": 0.001217608223669231,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "sh/grad_color_shs": {
+      "shape": [
+        5,
+        16,
+        3
+      ],
+      "max_absolute_error": 1.1641532182693481e-10,
+      "reference_max_absolute": 0.0008538893307559192,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "covariance/thermal": {
+      "shape": [
+        3,
+        40,
+        48
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.46136847138404846,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "covariance/color": {
+      "shape": [
+        3,
+        40,
+        48
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.33287107944488525,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "covariance/radii": {
+      "shape": [
+        5
+      ],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 9.0,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "covariance/loss": {
+      "shape": [],
+      "max_absolute_error": 0.0,
+      "reference_max_absolute": 0.005687330383807421,
+      "bitwise_equal": true,
+      "within_tolerance": true
+    },
+    "covariance/grad_means3D": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 2.7939677238464355e-09,
+      "reference_max_absolute": 0.002520175650715828,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "covariance/grad_means2D": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 3.026798367500305e-09,
+      "reference_max_absolute": 0.00285162590444088,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "covariance/grad_opacities": {
+      "shape": [
+        5,
+        1
+      ],
+      "max_absolute_error": 2.3283064365386963e-10,
+      "reference_max_absolute": 0.00332257361151278,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "covariance/grad_cov3D_precomp": {
+      "shape": [
+        5,
+        6
+      ],
+      "max_absolute_error": 2.9802322387695312e-08,
+      "reference_max_absolute": 0.054482392966747284,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "covariance/grad_thermals_precomp": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 2.3283064365386963e-10,
+      "reference_max_absolute": 0.0018544553313404322,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    },
+    "covariance/grad_colors_precomp": {
+      "shape": [
+        5,
+        3
+      ],
+      "max_absolute_error": 1.1641532182693481e-10,
+      "reference_max_absolute": 0.001300505711697042,
+      "bitwise_equal": false,
+      "within_tolerance": true
+    }
+  },
+  "limitations": "Synthetic coverage cannot prove equivalence for every possible rasterizer input or concurrency ordering."
+}

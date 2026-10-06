@@ -60,7 +60,7 @@ def loadCam(args, id, cam_info, resolution_scale, calibration_cache=None):
     camera.pair_strategy = getattr(cam_info, "pair_strategy", "camera_bundle")
     camera.pair_fallback_used = getattr(cam_info, "pair_fallback_used", False)
     camera.has_paired_view = getattr(cam_info, "has_paired_view", True)
-    if getattr(args, "use_camera_calibration", False):
+    if getattr(args, "use_camera_calibration", False) and getattr(cam_info, "camera_model", ""):
         from utils.camera_calibration import attach_calibration
         attach_calibration(camera, cam_info, calibration_cache)
     return camera

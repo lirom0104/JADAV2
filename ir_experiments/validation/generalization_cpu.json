@@ -1,0 +1,21 @@
+{
+  "created_utc": "2026-10-05T19:26:58.244397+00:00",
+  "script": "/home/lf/code/Our_Project-New-2-1/ir_experiments/diagnose_kernel_generalization.py",
+  "script_sha256": "fe442eb5a570bb3fdff70368127c4a3570010a8565a9645e9f4194867e678d70",
+  "syntax_verified": true,
+  "successful": true,
+  "checks": [
+    "completed_four_scene_preflight_without_torch_import_or_output_writes",
+    "empty_duplicate_traversal_and_incomplete_scene_rejected",
+    "actual_preflight_cli_is_cpu_only",
+    "png_metrics_use_NCHW_all_channel_mse_and_frozen_ssim",
+    "equal_view_float32_aggregation_and_metric_gain_direction",
+    "cuda_never_initialized"
+  ],
+  "cuda_initialized": false,
+  "preflight_provenance": {
+    "source_snapshot_sha256": "db24010b1235174c8e3ce43665c14feba2b35854d0453da18107364e8fe2fcca",
+    "runtime_manifest_sha256": "258e533100cc5eb38c2670ef306c1ff54909666bf2adc43cd09dcf0543e0c97c"
+  },
+  "scope": "CPU syntax, actual CLI preflight, rejects and metric logic only; no GPU renders, optimizer, or training"
+}

@@ -100,6 +100,21 @@ python train.py \
     -m output/SceneName
 ```
 
+Camera calibration is enabled by default for COLMAP scenes. It uses the supplied
+camera intrinsics for off-center principal points and lens distortion, and
+supports PINHOLE, SIMPLE_PINHOLE, OPENCV, SIMPLE_RADIAL, and RADIAL models.
+Use `--no-use_camera_calibration` to disable it. `render.py` reads the saved
+setting from `cfg_args` and applies the same projection correction at evaluation
+time. Scenes without COLMAP camera metadata keep their existing projection.
+
+To run both code versions on both datasets concurrently, with one method per
+GPU, use `./run_two_methods_two_gpus.sh`. GPU 0 runs this checkout and GPU 1
+runs `Our_Project-New-2-source-before-cleanup-20260926_163758`; both use camera
+calibration and CWGC is disabled. Results are written under each method's own
+`output/` directory by default; use `NEW1_OUTPUT_ROOT` and `NEW2_OUTPUT_ROOT`
+to choose custom locations, or pass `--dry-run` to inspect commands without
+training.
+
 Frequently used options include:
 
 - `--iterations`: total training iterations.
@@ -123,41 +138,6 @@ python extra_metrics.py -m output/SceneName
 python metrics.py -m output/SceneA output/SceneB
 python extra_metrics.py -m output/SceneA output/SceneB
 ```
-
-## 仅相机投影修正：两个数据集一键运行
-
-`Our_Project-New-2` 使用以下入口运行原模型加相机投影修正。
-BGFC、AT-GOM、CMO 等原有功能保留；增密使用 RGB 屏幕空间梯度。
-CWGC、后期 RMSE 混合、额外后期学习率退火、近相机剪枝、双模态增密及 RGB 梯度下限的实现已移除。
-
-```bash
-cd /home/lf/code/Our_Project-New-2
-./run_camera_only_all.sh --dry-run
-./run_camera_only_all.sh
-```
-
-脚本使用 JADA 环境的 Python，无需手动激活环境。GPU 0 顺序运行 RGBT-Scenes 的
-10 个场景，GPU 1 顺序运行 ThermoScenes1_3dgs 的 10 个场景；固定 seed=0，
-每场景从零训练 30000 步，然后自动渲染、计算 PSNR/SSIM/LPIPS、额外指标及温度误差。
-
-结果写入新的 `output/CameraOnly_seed0_<时间戳>_<进程号>/`；可通过 `--output` 指定
-尚不存在的输出目录。完成后查看 `comparison.txt`、`comparison_means.csv` 和
-`comparison_per_scene.csv`，逐场景详细进度在各自的 `train.log` 中。
-
-默认用保留的 `output/CWGC_seed0_20260925_130204_2918293/` 校验测试目标并比较指标，
-该目录是此前 CWGC＋相机修正＋RMSE 的组合结果，**不是原始 JADA 基线**。
-已有结果仅用于评估和比较，不作为模型初始化；不再依赖已删除的 `output/JADA_batch`。
-其他参考结果可用 `--reference-root /path/to/results` 指定。
-
-相机修正使用已有 COLMAP 内参和畸变参数，在无畸变画布上渲染后映射回原图网格；
-训练与评估目标保持原样。单场景通过 `--use_camera_calibration` 开启，批量入口已包含该参数。
-原有随机种子、断点恢复、EMA 导出和 JSON 训练日志继续可用。
-
-`scripts/cwgc_run.py`、`cwgc_evaluate.py`、`cwgc_dataset_report.py` 等通用工具保留原文件名，
-供批量训练、评估和历史结果查询使用，不包含 CWGC 训练实现。
-旧 CameraOnly 配置中的已删除选项仍可供报告脚本读取；重新执行旧训练命令时需移除这些选项。
-历史报告的源码校验可通过 `scripts/cwgc_dataset_report.py --source-snapshot /path/to/source_snapshot`
-指定训练时的源码快照，原有哈希检查仍然生效。
 
 ## Temperature evaluation
 

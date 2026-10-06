@@ -1,0 +1,121 @@
+{
+  "goal_status": "active",
+  "current_candidate": "ir_kernel_v1",
+  "run_root": "/home/lf/code/Our_Project-New-2-1/output/ir_kernel_v1_20261005_run2",
+  "runner_session_id": 7902,
+  "runner_pid": 1110003,
+  "current_training_pid_at_record": 1410516,
+  "started_utc": "2026-10-05T16:52:00Z",
+  "stage": "first full ten-scene candidate in progress",
+  "accepted": false,
+  "baseline_mean_ir": 26.122463035583497,
+  "target_mean_ir": 26.4,
+  "required_scenes": [
+    "Building",
+    "DailyStuff",
+    "Dimsum",
+    "Ebike",
+    "IronIngot",
+    "LandScape",
+    "Parterre",
+    "RoadBlock",
+    "RotaryKiln",
+    "Truck"
+  ],
+  "next_actions": [
+    "Poll live session 7902 or verify actual runner/child PID before treating run as alive or stopped.",
+    "Inspect each completed result and generate intermediate reports as needed; partial means are not acceptance.",
+    "After all ten, inspect comparison and same-view montages, record RGB judgment.",
+    "If full mean <26.4 or RGB obviously degrades, redesign/iterate with a uniform candidate and fresh30k runs."
+  ],
+  "notes": [
+    "User explicitly confirmed continuous operation without added timing constraints.",
+    "Only physical GPU0 is authorized; do not interrupt unrelated tasks.",
+    "Initial startup failed before training due to namespace-package discovery; recorded under output/ir_kernel_v1_20261005.",
+    "Current source and runtime extension copies are frozen in current run.",
+    "Default seed remains0, unchanged."
+  ],
+  "last_log_iteration": 23030,
+  "last_observation_utc": "2026-10-05T21:49:11.762318+00:00",
+  "live_evidence": "Persistent exec session7902 remains live; active child metadata and changing train log agree.",
+  "previous_goal_turn_classification": "progress: seventh scene Parterre validated, all-view ablation and visual review completed; optional SSIM fitting-cost diagnostic implemented and CPU-verified",
+  "current_turn_classification": "verified wait: live session7902 and advancing RotaryKiln training process confirmed",
+  "pending_auxiliary_diagnostic": "Two remaining formal scenes and reviews; complete-ten RGB judgment and isolated cost diagnostic. Eight scenes now have formal validation, all-view ablations and visual reviews; staged structural candidate still unapplied.",
+  "current_scene": "RotaryKiln",
+  "completed_scenes": {
+    "Building": {
+      "IR_PSNR": 28.37580680847168,
+      "RGB_PSNR": 25.584463119506836,
+      "IR_delta": 0.39173126220703125,
+      "RGB_delta": -0.034271240234375,
+      "same_model_kernel_gain": 0.3017749786376953,
+      "same_model_off_IR_PSNR": 28.074031829833984
+    },
+    "DailyStuff": {
+      "IR_PSNR": 21.758146286010742,
+      "RGB_PSNR": 22.679264068603516,
+      "IR_delta": -0.6876010894775391,
+      "RGB_delta": 0.48081207275390625,
+      "same_model_kernel_gain": 0.012327194213867188,
+      "same_model_off_IR_PSNR": 21.745819091796875
+    },
+    "Dimsum": {
+      "IR_PSNR": 27.144155502319336,
+      "RGB_PSNR": 24.84640121459961,
+      "IR_delta": -0.0009136199951171875,
+      "RGB_delta": 0.12032699584960938,
+      "same_model_kernel_gain": -0.119232177734375,
+      "same_model_off_IR_PSNR": 27.26338768005371
+    },
+    "Ebike": {
+      "IR_PSNR": 23.99764060974121,
+      "RGB_PSNR": 28.127450942993164,
+      "IR_delta": -0.07397651672363281,
+      "RGB_delta": -0.3683738708496094,
+      "same_model_kernel_gain": -0.12042236328125,
+      "same_model_off_IR_PSNR": 24.11806297302246
+    },
+    "IronIngot": {
+      "IR_PSNR": 30.131324768066406,
+      "RGB_PSNR": 26.5140380859375,
+      "IR_delta": -0.2740039825439453,
+      "RGB_delta": -0.09358978271484375,
+      "same_model_kernel_gain": -0.18375778198242188,
+      "same_model_off_IR_PSNR": 30.315082550048828
+    },
+    "LandScape": {
+      "IR_PSNR": 22.590431213378906,
+      "RGB_PSNR": 21.691740036010742,
+      "IR_delta": 0.7234535217285156,
+      "RGB_delta": -0.155731201171875,
+      "same_model_kernel_gain": 0.1979522705078125,
+      "same_model_off_IR_PSNR": 22.392478942871094
+    },
+    "Parterre": {
+      "IR_PSNR": 27.148643493652344,
+      "RGB_PSNR": 27.365232467651367,
+      "IR_delta": 0.6205196380615234,
+      "RGB_delta": -0.04417228698730469,
+      "same_model_kernel_gain": -0.1371631622314453,
+      "same_model_off_IR_PSNR": 27.28580665588379
+    },
+    "RoadBlock": {
+      "IR_PSNR": 25.969953536987305,
+      "RGB_PSNR": 31.54446029663086,
+      "IR_delta": -0.9977340698242188,
+      "RGB_delta": 0.5307960510253906,
+      "same_model_kernel_gain": 0.048107147216796875,
+      "same_model_off_IR_PSNR": 25.92184829711914
+    }
+  },
+  "prepared_unselected_candidate": {
+    "directory": "ir_experiments/staged_structural_v2",
+    "status": "unapplied, not selected or GPU-tested",
+    "ssim_weight": 0.01,
+    "cpu_checks_passed": 10,
+    "root_and_frozen_source_unchanged": true,
+    "selection_gate": "Decide after complete uniform v1 full-ten evaluation; retain original IR26.4/RGB requirements.",
+    "independent_review": "ir_experiments/staged_structural_v2/review.md",
+    "remaining_validation": "Real GPU0 end-to-end smoke if selected; staged source remains unapplied. Optional cost-gradient now reads saved SSIM weight, with five CPU checks passed."
+  }
+}

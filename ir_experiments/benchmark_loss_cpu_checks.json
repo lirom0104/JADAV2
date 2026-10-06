@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "tests_run": 5,
+  "errors": 0,
+  "failures": 0,
+  "cuda_initialized": false,
+  "torch_version": "2.10.0+cu128",
+  "command": [
+    "/home/lf/miniconda3/envs/thermalgaussian/bin/python",
+    "ir_experiments/check_benchmark_loss_cpu.py",
+    "--report",
+    "ir_experiments/benchmark_loss_cpu_checks.json"
+  ],
+  "benchmark_sha256": "6952b29bd962d2e94a0f26d952526dec94b93c512c0398b0f0a37d0766ad9eff",
+  "check_sha256": "30b195d7cc0fae655f35606006e1fb36088cd6aa0c924dad3ac1aca0710afd15",
+  "frozen_ssim_sha256": "aa7d2419fdc2e71caff10e964595c00bf75ee9f34b93330f91f77bc3fd27d258",
+  "staged_train_sha256": "585113cc4aaadae1ce93261cdc796a4781cf9c33333089b3341b8d6e0aad9ed9",
+  "limitations": [
+    "Synthetic CPU render outputs; no rasterization, CUDA timing, actual scene fitting, or quality evidence."
+  ]
+}

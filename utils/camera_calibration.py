@@ -1,10 +1,11 @@
-"""Optional calibrated projection without changing training/evaluation targets.
+"""Calibrated projection onto the original sensor image grid.
 
 Rasterize an enlarged undistorted pinhole canvas, then sample it onto the
 original distorted sensor grid. The same differentiable warp is used during
-training and inference. COLMAP's pixel centers are offset by 0.5 relative to
+training and inference. COLMAP pixel centers are offset by 0.5 relative to
 integer image indices, matching the rasterizer's ndc2Pix convention.
 """
+
 import math
 from types import SimpleNamespace
 
@@ -39,32 +40,31 @@ def calibration_grid(width, height, intrinsics, distortion):
     fx, fy, cx, cy = intrinsics
     matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float64)
     yy, xx = np.mgrid[:height, :width]
-    distorted = np.stack((xx+.5, yy+.5), -1).astype(np.float64).reshape(-1, 1, 2)
+    distorted = np.stack((xx + .5, yy + .5), -1).astype(np.float64).reshape(-1, 1, 2)
     normalized = cv2.undistortPointsIter(
         distorted, matrix, distortion, None, None,
         (cv2.TERM_CRITERIA_COUNT | cv2.TERM_CRITERIA_EPS, 50, 1e-9),
     ).reshape(height, width, 2)
     if not np.isfinite(normalized).all():
         raise ValueError("Non-finite inverse lens-distortion map")
-    # Use the original focal length/resolution and cover the inverse-warp rays.
     extent = np.max(np.abs(normalized), axis=(0, 1))
-    raster_width = max(width, int(math.ceil(2*fx*extent[0]+4)))
-    raster_height = max(height, int(math.ceil(2*fy*extent[1]+4)))
-    if raster_width > width*4 or raster_height > height*4:
+    raster_width = max(width, int(math.ceil(2 * fx * extent[0] + 4)))
+    raster_height = max(height, int(math.ceil(2 * fy * extent[1] + 4)))
+    if raster_width > width * 4 or raster_height > height * 4:
         raise ValueError("Inverse camera distortion requires an implausibly large canvas")
-    grid = normalized * np.array([2*fx/raster_width, 2*fy/raster_height])
+    grid = normalized * np.array([2 * fx / raster_width, 2 * fy / raster_height])
     return grid.astype(np.float32), raster_width, raster_height
 
 
 def attach_calibration(camera, camera_info, cache=None):
     intrinsics, distortion = unpack_calibration(camera_info.camera_model, camera_info.camera_params)
-    scale = np.array([camera.image_width/camera_info.width, camera.image_height/camera_info.height])
+    scale = np.array([camera.image_width / camera_info.width, camera.image_height / camera_info.height])
     intrinsics = intrinsics * np.tile(scale, 2)
-    # Exact identity for the repository's ordinary centered PINHOLE cameras.
-    if (not np.any(distortion) and abs(intrinsics[2]-camera.image_width/2)<1e-7
-            and abs(intrinsics[3]-camera.image_height/2)<1e-7):
+    if (not np.any(distortion) and abs(intrinsics[2] - camera.image_width / 2) < 1e-7
+            and abs(intrinsics[3] - camera.image_height / 2) < 1e-7):
         return
-    key = (camera.image_width, camera.image_height, *intrinsics, *distortion, str(camera.world_view_transform.device))
+    key = (camera.image_width, camera.image_height, *intrinsics, *distortion,
+           str(camera.world_view_transform.device))
     cached = None if cache is None else cache.get(key)
     if cached is None:
         grid, width, height = calibration_grid(camera.image_width, camera.image_height, intrinsics, distortion)
@@ -74,8 +74,8 @@ def attach_calibration(camera, camera_info, cache=None):
     camera.calibration_grid, width, height = cached
     camera.calibration_intrinsics = tuple(float(x) for x in intrinsics)
     camera.calibration_distortion = tuple(float(x) for x in distortion)
-    fovx = 2*math.atan(width/(2*intrinsics[0]))
-    fovy = 2*math.atan(height/(2*intrinsics[1]))
+    fovx = 2 * math.atan(width / (2 * intrinsics[0]))
+    fovy = 2 * math.atan(height / (2 * intrinsics[1]))
     projection = getProjectionMatrix(camera.znear, camera.zfar, fovx, fovy).T.to(camera.world_view_transform)
     camera.raster_camera = SimpleNamespace(
         image_width=width, image_height=height, FoVx=fovx, FoVy=fovy,
@@ -97,27 +97,9 @@ def project_sensor_pixels(camera_points, intrinsics, distortion):
     """Brown-Conrady projection into zero-based sensor pixel indices."""
     fx, fy, cx, cy = intrinsics
     k1, k2, p1, p2 = distortion
-    x, y = (camera_points[..., :2]/camera_points[..., 2:3].clamp_min(1e-6)).unbind(-1)
-    r2 = x*x + y*y
-    radial = 1+k1*r2+k2*r2*r2
-    xd = x*radial + 2*p1*x*y + p2*(r2+2*x*x)
-    yd = y*radial + p1*(r2+2*y*y) + 2*p2*x*y
-    return torch.stack((fx*xd+cx-.5, fy*yd+cy-.5), -1)
-
-
-def sensor_sample_neighbors(camera, xy):
-    """Virtual-raster integer samples and weights for the exact bilinear warp."""
-    x, y = xy.long().unbind(-1)
-    grid = camera.calibration_grid[y, x]
-    raster = camera.raster_camera
-    pixel = ((grid+1)*grid.new_tensor((raster.image_width,raster.image_height))-1)*.5
-    lower = pixel.floor()
-    fraction = pixel-lower
-    offsets = pixel.new_tensor(((0,0),(1,0),(0,1),(1,1)))
-    samples = lower[:,None]+offsets
-    u,v = fraction.unbind(-1)
-    weights = torch.stack(((1-u)*(1-v),u*(1-v),(1-u)*v,u*v),-1)
-    valid = ((samples[...,0]>=0)&(samples[...,0]<raster.image_width)
-             &(samples[...,1]>=0)&(samples[...,1]<raster.image_height))
-    weights = weights*valid
-    return samples.reshape(-1,2), weights.reshape(-1)
+    x, y = (camera_points[..., :2] / camera_points[..., 2:3].clamp_min(1e-6)).unbind(-1)
+    r2 = x * x + y * y
+    radial = 1 + k1 * r2 + k2 * r2 * r2
+    xd = x * radial + 2 * p1 * x * y + p2 * (r2 + 2 * x * x)
+    yd = y * radial + p1 * (r2 + 2 * y * y) + 2 * p2 * x * y
+    return torch.stack((fx * xd + cx - .5, fy * yd + cy - .5), -1)

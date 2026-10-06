@@ -1,0 +1,61 @@
+{
+  "environment": "JADA",
+  "python_executable": "/home/lf/miniconda3/envs/JADA/bin/python",
+  "python_version": "3.10.21 (main, Aug 27 2026, 14:42:07) [GCC 14.3.0]",
+  "torch_version": "2.10.0+cu128",
+  "cuda_version": "12.8",
+  "CUDA_VISIBLE_DEVICES": "0",
+  "device": "NVIDIA GeForce RTX 5090",
+  "backend_wrapper": "/home/lf/miniconda3/envs/JADA/lib/python3.10/site-packages/diff_gaussian_rasterization/__init__.py",
+  "backend_wrapper_sha256": "90c7c64022c6bd2498f99476df3eaa606ece8fd6ccc88df0ba236807247c48ea",
+  "backend_extension": "/home/lf/miniconda3/envs/JADA/lib/python3.10/site-packages/diff_gaussian_rasterization/_C.cpython-310-x86_64-linux-gnu.so",
+  "backend_extension_sha256": "b2ff4dcfa3fea2325cd610db75e9e31f55cbed321ef64728015c8784b8f0d577",
+  "supports_pstb": false,
+  "pstb_argument": "unsupported",
+  "cases": {
+    "positive": {
+      "thermal_min": 0.0,
+      "thermal_max": 0.45939040184020996,
+      "color_min": 0.0,
+      "color_max": 0.3314266800880432
+    },
+    "signed_mixed": {
+      "thermal_min": -0.34686478972435,
+      "thermal_max": 0.2901524603366852,
+      "color_min": -0.2501910924911499,
+      "color_max": 0.21049244701862335
+    },
+    "signed_single": {
+      "thermal_min": -0.24962756037712097,
+      "thermal_max": 0.0,
+      "color_min": 0.0,
+      "color_max": 0.10341712832450867
+    },
+    "sh": {
+      "thermal_min": 0.0,
+      "thermal_max": 0.5203710198402405,
+      "color_min": 0.0,
+      "color_max": 0.4920419156551361
+    },
+    "covariance": {
+      "thermal_min": 0.0,
+      "thermal_max": 0.46136847138404846,
+      "color_min": 0.0,
+      "color_max": 0.33287107944488525
+    }
+  },
+  "signed_color_linearity_max_absolute_error": 0.0,
+  "signed_color_finite_differences": {
+    "thermals_precomp": {
+      "analytic": -0.00022746225295122713,
+      "numeric": -0.00022746098693460226,
+      "absolute_error": 1.2660166248679161e-09
+    },
+    "opacities": {
+      "analytic": -0.00014372113218996674,
+      "numeric": -0.00014374381862580776,
+      "absolute_error": 2.2686435841023922e-08
+    }
+  },
+  "peak_gpu_memory_bytes": 181760
+}

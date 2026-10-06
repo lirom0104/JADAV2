@@ -1,5 +1,4 @@
 *.pyc
-*.log
 *.egg-info/
 .vscode
 output

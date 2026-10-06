@@ -1,0 +1,139 @@
+{
+  "updated_utc": "2026-10-05T21:41:38.689853+00:00",
+  "goal_complete": false,
+  "requirements": [
+    {
+      "item": "Starting worktree and uncommitted modifications preserved",
+      "status": "verified",
+      "evidence": [
+        "initial_state/status.txt",
+        "initial_state/tracked.diff",
+        "initial_state/source.tar.gz",
+        "initial_state/manifest.json"
+      ]
+    },
+    {
+      "item": "True IR-only Gaussian parameters and rendering",
+      "status": "implemented_and_smoke_verified",
+      "evidence": [
+        "../scene/gaussian_model.py:get_ir_kernel_render_params",
+        "../gaussian_renderer/__init__.py:render",
+        "smoke_v1/verification.json",
+        "../IR_KERNEL_DESIGN.md"
+      ]
+    },
+    {
+      "item": "Initialization, gradients, save/load/export, clone/split/prune",
+      "status": "verified_by_focused_tests_and_real_training",
+      "evidence": [
+        "validation/lifecycle.log",
+        "validation/odb_regression.log",
+        "smoke_v1/verification.json"
+      ]
+    },
+    {
+      "item": "Only GPU0, unchanged default seed, train data only",
+      "status": "source_and_command_verified_current_run_in_progress",
+      "evidence": [
+        "../output/ir_kernel_v1_20261005_run2/run_metadata.json",
+        "../output/ir_kernel_v1_20261005_run2/code_snapshot/source/utils/general_utils.py",
+        "../output/ir_kernel_v1_20261005_run2/code_snapshot/source/train.py"
+      ]
+    },
+    {
+      "item": "All10 final models from dataset exactly30000 cumulative iterations",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "item": "Fixed baseline ten ours_30000 results and equal-scene means",
+      "status": "verified",
+      "evidence": [
+        "baseline_audit.json",
+        "baseline_audit.md"
+      ]
+    },
+    {
+      "item": "Same split, resolution, test views, metrics convention",
+      "status": "baseline_verified_candidate_full_suite_pending",
+      "evidence": [
+        "baseline_audit.json",
+        "smoke_v1/verification.json"
+      ]
+    },
+    {
+      "item": "New task-specific orchestration, source/config/commands/runtime artifacts",
+      "status": "implemented_in_use",
+      "evidence": [
+        "run_suite.py",
+        "report_results.py",
+        "README.md",
+        "../output/ir_kernel_v1_20261005_run2/run_metadata.json"
+      ]
+    },
+    {
+      "item": "Complete10 scene IR mean >=26.4 without obvious meanRGB degradation",
+      "status": "unproven_pending_full_suite",
+      "evidence": []
+    },
+    {
+      "item": "Each scene and meanRGB PSNR SSIM LPIPS, IR metrics, comparisons",
+      "status": "pending_full_suite",
+      "evidence": []
+    },
+    {
+      "item": "Same-view visualization and evidence-based RGB judgment",
+      "status": "pending_full_suite",
+      "evidence": []
+    },
+    {
+      "item": "Parameter count, overhead, stability, training strategy",
+      "status": "documented_with_small_model_measurement_full_model_measurement_pending",
+      "evidence": [
+        "../IR_KERNEL_DESIGN.md",
+        "smoke_v1/verification.json"
+      ]
+    },
+    {
+      "item": "Promising design expanded to complete10; iterate if below target",
+      "status": "first_full_candidate_in_progress",
+      "evidence": [
+        "current_state.json"
+      ]
+    }
+  ],
+  "acceptance_rule": "Do not mark achieved until all pending requirements are supported by actual full10 results from one uniform method.",
+  "validated_formal_scenes": [
+    "Building",
+    "DailyStuff",
+    "Dimsum",
+    "Ebike",
+    "IronIngot",
+    "LandScape",
+    "Parterre",
+    "RoadBlock"
+  ],
+  "remaining_formal_scenes": [
+    "RotaryKiln",
+    "Truck"
+  ],
+  "auxiliary_evidence": {
+    "completed_scene_visual_reviews": [
+      "output/ir_kernel_v1_20261005_run2/diagnostics/Building_visual_review.json",
+      "output/ir_kernel_v1_20261005_run2/diagnostics/DailyStuff_visual_review.json",
+      "output/ir_kernel_v1_20261005_run2/diagnostics/Dimsum_visual_review.json",
+      "output/ir_kernel_v1_20261005_run2/diagnostics/Ebike_visual_review.json",
+      "output/ir_kernel_v1_20261005_run2/diagnostics/IronIngot_visual_review.json",
+      "output/ir_kernel_v1_20261005_run2/diagnostics/LandScape_visual_review.json",
+      "output/ir_kernel_v1_20261005_run2/diagnostics/Parterre_visual_review.json",
+      "output/ir_kernel_v1_20261005_run2/diagnostics/RoadBlock_visual_review.json"
+    ],
+    "kernel_ablation_summary": "output/ir_kernel_v1_20261005_run2/diagnostics/kernel_ablation/summary.json",
+    "train_test_kernel_diagnostic": "output/ir_kernel_v1_20261005_run2/diagnostics/kernel_generalization/summary.json",
+    "next_design_review": "design_review_after_generalization.md",
+    "landscape_structure_attribution": "output/ir_kernel_v1_20261005_run2/diagnostics/kernel_quality_cpu/LandScape/report.json",
+    "optional_ssim_cost_cpu": "ir_experiments/benchmark_loss_cpu_checks.json",
+    "seven_scene_design_review": "design_review_after_seven_scenes.md",
+    "eight_scene_structure_summary": "output/ir_kernel_v1_20261005_run2/diagnostics/kernel_structure_eight_scenes.json"
+  }
+}
